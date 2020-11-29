@@ -1,5 +1,5 @@
 <template>
-    <div class="quiz-btn">
+    <div class="quiz-btn" v-on:click="$router.push('Test')">
         <slot></slot>
     </div>
 </template>

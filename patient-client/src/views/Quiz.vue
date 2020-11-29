@@ -1,8 +1,9 @@
 <template>
   <div class="quiz">
     <Header>Заполнено: <span class="sub">0 из 10</span></Header>
+    <div class="wrapper">
     <Info>
-      UserName UserFatherName, чтобы предвосхитить возможные заболевания системы кровообращения, необходимо постепенно полностью заполнить анкету.
+      {{ $store.state.user.name }} {{ $store.state.user.middlename }}, чтобы предвосхитить возможные заболевания системы кровообращения, необходимо постепенно полностью заполнить анкету.
     </Info>
     <div class="btns">
       <QuizBtn>Вредные привычки</QuizBtn>
@@ -13,6 +14,7 @@
       <QuizBtn>Семья</QuizBtn>
     </div>
     <TabBar/>
+    </div>
   </div>
 </template>
 
@@ -36,8 +38,8 @@ export default {
 
 <style lang="scss">
   .quiz{
-    padding: 10px;
-    padding-top: 60px;
+    padding: 0;
+    padding-top: 0;
     padding-bottom: 110px;
     text-align: center;
     display: flex;

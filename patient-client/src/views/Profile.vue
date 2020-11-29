@@ -5,6 +5,7 @@
       Иван <br>
       Иванович
     </Header>
+    <div class="wrapper">
     <h2>Общая информация:</h2>
     <Bio/>
     <h2>Адрес проживания:</h2>
@@ -13,6 +14,7 @@
     <Risk>Ишимическая болезнь</Risk>
     <Risk>Тромбоз</Risk>
     <TabBar/>
+    </div>
   </div>
 </template>
 
@@ -36,8 +38,8 @@ export default {
 
 <style lang="scss">
   .profile{
-    padding: 10px;
-    padding-top: 60px;
+    padding: 0;
+    padding-top: 0;
     padding-bottom: 110px;
     text-align: center;
     display: flex;

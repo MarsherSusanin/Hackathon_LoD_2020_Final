@@ -1,12 +1,14 @@
 <template>
   <div class="home">
-    <Header>27 Ноября 2020</Header>
+    <Header>{{ new Date().getDate() }} Ноября 2020</Header>
+    <div class="wrapper">
     <Info>
-      UserName UserFatherName, не забывайте ежедневно контролировать свои показатели. Внесите в систему необходимую информацию.
+      {{ $store.state.user.name }} {{ $store.state.user.middlename }}, не забывайте ежедневно контролировать свои показатели. Внесите в систему необходимую информацию.
     </Info>
     <img class="illustration" src="/img/icons/home_base.svg" />
-    <BigRoundBtn>Внести показатели</BigRoundBtn>
+    <BigRoundBtn v-on:clicked="$router.push({name: 'Diary'})">Внести показатели</BigRoundBtn>
     <TabBar/>
+    </div>
   </div>
 </template>
 
@@ -24,14 +26,19 @@ export default {
     TabBar,
     BigRoundBtn,
     Info
+  },
+  mounted () {
+    if (!this.$store.state.session_id) {
+      this.$router.replace({ name: 'Login' })
+    }
   }
 }
 </script>
 
 <style lang="scss">
   .home{
-    padding: 10px;
-    padding-top: 60px;
+    padding: 0;
+    padding-top: 0;
     padding-bottom: 110px;
     text-align: center;
     display: flex;

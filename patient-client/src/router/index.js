@@ -1,6 +1,9 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Home from '../views/Home.vue'
+import Diary from '../views/Diary.vue'
+import Test from '../views/Test.vue'
+import Login from '../views/Login.vue'
 import Quiz from '../views/Quiz.vue'
 import Profile from '../views/Profile.vue'
 
@@ -12,9 +15,24 @@ const routes = [
     redirect: '/home'
   },
   {
+    path: '/login',
+    name: 'Login',
+    component: Login
+  },
+  {
     path: '/home',
     name: 'Home',
     component: Home
+  },
+  {
+    path: '/diary',
+    name: 'Diary',
+    component: Diary
+  },
+  {
+    path: '/test',
+    name: 'Test',
+    component: Test
   },
   {
     path: '/quiz',
