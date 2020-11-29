@@ -6,6 +6,9 @@ import time
 from datetime import datetime, timedelta
 # Подключаем библиотеку для работы с базами данных PostgreSQL:
 import psycopg2
+from catboost import CatBoostRegressor
+
+#from flask_swagger_ui import get_swaggerui_blueprint
 
 flask_app = Flask(__name__)
 
@@ -14,6 +17,23 @@ app = Api(app = flask_app,
 		  title = "MIS Heart", 
 		  description = "Медицинская информационная система Сердце",
       validate=True)
+
+### swagger specific ###
+#SWAGGER_URL = '/swagger'
+#API_URL = '/static/swagger.json'
+#SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
+#    SWAGGER_URL,
+#    API_URL,
+#    config={
+#        'app_name': "MIS Heart"
+#    }
+#)
+#app.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
+### end swagger specific ###
+      
+#app.UseSwagger();
+#app.SwaggerEndpoint("/swagger/OpenAPISpec/swagger.json", "Demo API");
+
 
 #name_space = app.namespace('api/1.0', description='Main APIs / Version APIs')
 name_space_authdoc = app.namespace('api/1.0/authdoc', description='API / Версия API / API-авторизации для доктора')
@@ -27,6 +47,12 @@ name_space_docgetpatient_anamnesis = app.namespace('api/1.0/docgetpatientanamnes
 name_space_patientgetpatient_anamnesis = app.namespace('api/1.0/patientgetpatientanamnesis', description='API / Версия API / API-получения пациентом анамнеза жизни пациента')
 name_space_docaddpatient_anamnesis = app.namespace('api/1.0/docaddpatientanamnesis', description='API / Версия API / API-добавления доктором анамнеза жизни пациента')
 name_space_patientaddpatient_anamnesis = app.namespace('api/1.0/patientaddpatientanamnesis', description='API / Версия API / API-добавления пациентом анамнеза жизни пациента')
+name_space_docgetpatient_predict = app.namespace('api/1.0/docgetpatientpredict', description='API / Версия API / API-предсказания доктором состояния пациента')
+name_space_patientgetpatient_predict = app.namespace('api/1.0/patientgetpatientpredict', description='API / Версия API / API-предсказания пациентом состояния пациента')
+name_space_patientaddpatient_druganamnesis =  app.namespace('api/1.0/patientaddpatientdruganamnesis', description='API / Версия API / API-добавления пациентом анамнеза приема лекарств пациентом')
+name_space_patientaddpatient_injuryanamnesis =  app.namespace('api/1.0/patientaddpatientinjuryanamnesis', description='API / Версия API / API-добавления пациентом анамнеза травм пациентом')
+name_space_patientaddpatient_smokinganamnesis =  app.namespace('api/1.0/patientaddpatientsmokinganamnesis', description='API / Версия API / API-добавления пациентом анамнеза курения пациента')
+name_space_patientaddpatient_alcoholanamnesis =  app.namespace('api/1.0/patientaddpatientalcoholanamnesis', description='API / Версия API / API-добавления пациентом анамнеза Алкоголя пациента')
 
 #model = app.model('Name Model', {'name': fields.String(required = True, description="Name of the person", help="Name cannot be blank.")})
 model_regdoc = app.model('Регистрация нового Доктора', {'password': fields.String(required = True, description="Пароль доктора", help="Поле Пароль доктора не может быть пустым."),
@@ -61,18 +87,11 @@ model_docgetallpatients = app.model('Получение доктором спи�
 model_docgetpatient_info = app.model('Получение доктором основных данных пациента',
                                {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
                                 'doctor_id': fields.String(required = True, description="ID доктора", help="Поле ID доктора не может быть пустым."),
-                                'birthday': fields.String(required = True, description="День рождения пациента", help="Поле День рождения не может быть пустым."),
-                                'middlename': fields.String(required = True, description="Отчество пациента", help="Поле Отчество не может быть пустым."),
-                                'name': fields.String(required = True, description="Имя пациента", help="Поле Имя не может быть пустым."),
-                                'surname': fields.String(required = True, description="Фамилия пациента", help="Поле Фамилия не может быть пустым.")})
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым.")})
 
 model_patientgetpatient_info = app.model('Получение пациентом основных данных пациента',
                                {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
-                                'patient_id': fields.String(required = True, description="ID доктора", help="Поле ID доктора не может быть пустым."),
-                                'birthday': fields.String(required = True, description="День рождения пациента", help="Поле День рождения не может быть пустым."),
-                                'middlename': fields.String(required = True, description="Отчество пациента", help="Поле Отчество не может быть пустым."),
-                                'name': fields.String(required = True, description="Имя пациента", help="Поле Имя не может быть пустым."),
-                                'surname': fields.String(required = True, description="Фамилия пациента", help="Поле Фамилия не может быть пустым.")})
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым.")})
 
 
 model_docgetpatient_anamnesis = app.model('Получение доктором анамнеза жизни пациента',
@@ -109,7 +128,70 @@ model_patientaddpatient_anamnesis = app.model('Добавление пациен
                                 'pensioner': fields.String(required = True, description="Пенсионер (0 - Нет, 1 - Да)", help="Поле Пенсионер пациента не может быть пустым."),
                                 'weight': fields.String(required = True, description="Вес пациента (в килограммах)", help="Поле Вес пациента не может быть пустым."),
                                 'growth': fields.String(required = True, description="Рост пациента (в метрах)", help="Поле Рост пациента не может быть пустым.")})
+                                
+model_patientaddpatient_druganamnesis = app.model('Добавление пациентом анамнеза приема лекарств пациентом',
+                               {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым."),
+                                'drug_regular': fields.String(required = True, description="Регулярный прием лекарств пациентом (0 - нет, 1 - да)", help="Поле Регулярный прием лекарств пациентом не может быть пустым."),
+                                'drug_pressure': fields.String(required = True, description="Прием пациентом лекарств для давления (0 - нет, 1 - да)", help="Поле Прием пациентом лекарств для давления не может быть пустым."),
+                                'drug_cholesterol': fields.String(required = True, description="Прием пациентом лекарств для нормализации холестерина (0 - нет, 1 - да)", help="Поле Прием пациентом лекарств для нормализации холестерина не может быть пустым."),
+                                'drug_stroke': fields.String(required = True, description="Прием пациентом лекарств от инсульта (0 - нет, 1 - да)", help="Поле Прием пациентом лекарств от инсульта не может быть пустым."),
+                                'drug_diabetes': fields.String(required = True, description="Прием пациентом лекарств от диабета (0 - нет, 1 - да)", help="Поле Прием пациентом лекарств от диабета не может быть пустым.")})
 
+model_patientaddpatient_injuryanamnesis = app.model('Добавление пациентом анамнеза травм пациентом',
+                               {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым."),
+                                'year_injury': fields.String(required = True, description="Наличие травм у пациента за последний год (0 - нет, 1 - да)", help="Поле Наличие травм у пациента за последний год не может быть пустым."),
+                                'year_fracture': fields.String(required = True, description="Наличие переломов у пациента за последний год (0 - нет, 1 - да)", help="Поле Наличие переломов у пациента за последний год не может быть пустым."),
+                                'count_fracture': fields.String(required = True, description="Количество переломов у пациента за последний год", help="Поле Количество переломов у пациента за последний год не может быть пустым.")})
+
+model_patientaddpatient_smokinganamnesis = app.model('Добавление пациентом анамнеза курения пациента',
+                               {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым."),
+                                'status_smoking': fields.String(required = True, description="Статус курения пациента (0 - Никогда не курил(а), 1 - Бросил(а), 2 - Курит)", help="Поле Статус курения пациента не может быть пустым."),
+                                'year_smoking': fields.String(required = True, description="Возраст курения пациента (со скольки лет начал курить, 0 - если никогда не курил(а)", help="Поле Возраст курения пациента не может быть пустым."),
+                                'count_smoking': fields.String(required = True, description="Количество сигарет в день (0 - если никогда не курил(а)", help="Поле Количество сигарет в день не может быть пустым."),
+                                'passive_smoking': fields.String(required = True, description="Пассивное курение (0 - нет, 1 - да)", help="Поле Пассивное курение не может быть пустым.")})
+
+model_patientaddpatient_alcoholanamnesis = app.model('Добавление пациентом анамнеза курения пациента',
+                               {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым."),
+                                'status_alcohol': fields.String(required = True, description="Статус выпивания алкоголя пациента (0 - Никогда не употреблял(а), 1 - ранее употреблял(а), 2 - употребляю в настоящее время)", help="Поле Статус выпивания алкоголя пациента не может быть пустым."),
+                                'year_alcohol': fields.String(required = True, description="Возраст выпивания пациента (со скольки лет начал пить, 0 - если никогда не пил(а)", help="Поле Возраст выпивания пациента не может быть пустым."),
+                                'vodka_size': fields.String(required = True, description="Размер стопки водки", help="Поле Размер стопки водки не может быть пустым."),
+                                'vodka_regular': fields.String(required = True, description="Регулярность выпивания водки (0 - никогда, 1 - каждый месяц, 2 - каждую неделю, 3 - каждый день)", help="Поле Регулярность выпивания водки не может быть пустым."),
+                                'vodka_count': fields.String(required = True, description="Количество стопок водки", help="Поле Количество стопок водки не может быть пустым."),
+                                'vodka_year': fields.String(required = True, description="Сколько лет пьет водку", help="Поле Сколько лет пьет водку не может быть пустым."),
+                                'vodka_otkazyear': fields.String(required = True, description="Сколько лет не пьет водку", help="Поле Сколько лет не пьет водку не может быть пустым."),
+                                'vino_size': fields.String(required = True, description="Размер стопки вина", help="Поле Размер стопки вина не может быть пустым."),
+                                'vino_regular': fields.String(required = True, description="Регулярность выпивания вина (0 - никогда, 1 - каждый месяц, 2 - каждую неделю, 3 - каждый день)", help="Поле Регулярность выпивания вина не может быть пустым."),
+                                'vino_count': fields.String(required = True, description="Количество стопок вина", help="Поле Количество стопок вина не может быть пустым."),
+                                'vino_year': fields.String(required = True, description="Сколько лет пьет вино", help="Поле Сколько лет пьет вино не может быть пустым."),
+                                'vino_otkazyear': fields.String(required = True, description="Сколько лет не пьет вино", help="Поле Сколько лет не пьет вино не может быть пустым."),
+                                'pivo_size': fields.String(required = True, description="Размер стопки пива", help="Поле Размер стопки пива не может быть пустым."),
+                                'pivo_regular': fields.String(required = True, description="Регулярность выпивания пива (0 - никогда, 1 - каждый месяц, 2 - каждую неделю, 3 - каждый день)", help="Поле Регулярность выпивания пива не может быть пустым."),
+                                'pivo_count': fields.String(required = True, description="Количество стопок пива", help="Поле Количество стопок пива не может быть пустым."),
+                                'pivo_year': fields.String(required = True, description="Сколько лет пьет пиво", help="Поле Сколько лет пьет пиво не может быть пустым."),
+                                'pivo_otkazyear': fields.String(required = True, description="Сколько лет не пьет пиво", help="Поле Сколько лет не пьет пиво не может быть пустым."),
+                                'samogon_size': fields.String(required = True, description="Размер стопки самогона", help="Поле Размер стопки самогона не может быть пустым."),
+                                'samogon_regular': fields.String(required = True, description="Регулярность выпивания самогона (0 - никогда, 1 - каждый месяц, 2 - каждую неделю, 3 - каждый день)", help="Поле Регулярность выпивания самогона не может быть пустым."),
+                                'samogon_count': fields.String(required = True, description="Количество стопок самогона", help="Поле Количество стопок самогона не может быть пустым."),
+                                'samogon_year': fields.String(required = True, description="Сколько лет пьет самогон", help="Поле Сколько лет пьет самогон не может быть пустым."),
+                                'samogon_otkazyear': fields.String(required = True, description="Сколько лет не пьет самогон", help="Поле Сколько лет не пьет самогон не может быть пустым."),
+                                'krvino_regular': fields.String(required = True, description="Регулярность выпивания красного вина (0 - никогда, 1 - каждый месяц, 2 - каждую неделю, 3 - каждый день)", help="Поле Регулярность выпивания красного вина не может быть пустым."),
+                                'krvino_count': fields.String(required = True, description="Количество стопок красного вина", help="Поле Количество стопок красного вина не может быть пустым."),
+                                'krvino_year': fields.String(required = True, description="Сколько лет пьет красное вино", help="Поле Сколько лет пьет красное вино не может быть пустым."),
+                                'krvino_otkazyear': fields.String(required = True, description="Сколько лет не пьет красное вино", help="Поле Сколько лет не пьет красное вино не может быть пустым.")})
+
+
+model_docgetpatient_predict = app.model('Получение доктором предсказание состояния пациента',
+                               {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
+                                'doctor_id': fields.String(required = True, description="ID доктора", help="Поле ID доктора не может быть пустым."),
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым.")})
+
+model_patientgetpatient_predict = app.model('Получение пациентом предсказание собственного состояния',
+                               {'session_id': fields.String(required = True, description="ID текущей сессии", help="Поле ID текущей сессии не может быть пустым."),
+                                'patient_id': fields.String(required = True, description="ID пациента", help="Поле ID пациента не может быть пустым.")})
 
 xdbname='heartdb'
 xuser='alex'
@@ -124,6 +206,21 @@ patient1 = {}
 ##Функция генерации уникальных идентификаторов:
 def newidentificator():
     return str(uuid.uuid4())
+
+def predict(patient_data):
+    clf = CatBoostRegressor()
+    #test = [1,68,0,1,1,1,1,0,0,0,0,0,0,0,0,1,2,18,50,1,3,50,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,0,1]
+    # больше примеров тут test_data.csv
+    diseas=[]
+    for model in ['arterial_hypertension.dump', 'ONMK.dump', 'stenokardiya.dump', 'ssnedost.dump', 'other_heart_disease.dump']:
+        clf.load_model(model)
+        #pred=clf.predict(test, prediction_type='Probability')
+        pred=clf.predict(patient_data, prediction_type='Probability')
+        #print('Вероятность {}: {:.4f}'.format(model, pred[1]))
+        s ='{:.4f}'.format(pred[1]) 
+        diseas_pred = { model : s }
+        diseas.append(diseas_pred)
+    return diseas    
 
 def is_login(login):
     #select count(*) from (select * from foo) as x;
@@ -304,7 +401,7 @@ def is_patient_info(patient):
     #Установка кодировки
     cur.execute("SET NAMES 'utf8'")
     cur.execute("START TRANSACTION")
-    cur.execute("SELECT COUNT(*) FROM patient_info WHERE (surname='"+patient['surname']+"' AND name='"+patient['name']+"' AND middlename='"+patient['middlename']+"' AND birthday='"+patient['birthday']+"')")
+    cur.execute("SELECT COUNT(*) FROM patient_info WHERE (patient_id='"+patient['patient_id']+"')")
     results = cur.fetchall()
     cur.close()
     #Фиксация изменений
@@ -378,6 +475,181 @@ def insert_patient_anamnesis_into_db(patient):
     patient['patientanamnesis_id'] = a_d
     return patient
 
+def insert_patient_druganamnesis_into_db(patient):
+    now = datetime.now()
+    a_d = newidentificator()
+    con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
+    #Применение курсоров
+    cur = con.cursor()
+    #Установка кодировки
+    cur.execute("SET NAMES 'utf8'")
+    cur.execute("START TRANSACTION")
+    #print(person['surname'])
+    cur.execute("INSERT INTO patient_drugs(patient_id, patientanamnesis_id, drug_regular, drug_pressure, drug_cholesterol, drug_stroke, drug_diabetes, createdatetime) VALUES('"+patient['patient_id']+"','"+a_d+"','"+patient['drug_regular']+"','"+patient['drug_pressure']+"','"+patient['drug_cholesterol']+"','"+patient['drug_stroke']+"','"+patient['drug_diabetes']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"')")
+    #print(person['surname'])
+    #Закрытие курсора
+    cur.close()
+    #Фиксация изменений
+    con.commit()
+    #Закрытие соединения
+    con.close()
+    patient['patientanamnesis_id'] = a_d
+    return patient
+
+def insert_patient_injuryanamnesis_into_db(patient):
+    now = datetime.now()
+    a_d = newidentificator()
+    con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
+    #Применение курсоров
+    cur = con.cursor()
+    #Установка кодировки
+    cur.execute("SET NAMES 'utf8'")
+    cur.execute("START TRANSACTION")
+    #print(person['surname'])
+    cur.execute("INSERT INTO patient_injurys(patient_id, patientanamnesis_id, year_injury, year_fracture, count_fracture, createdatetime) VALUES('"+patient['patient_id']+"','"+a_d+"','"+patient['year_injury']+"','"+patient['year_fracture']+"','"+patient['count_fracture']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"')")
+    #print(person['surname'])
+    #Закрытие курсора
+    cur.close()
+    #Фиксация изменений
+    con.commit()
+    #Закрытие соединения
+    con.close()
+    patient['patientanamnesis_id'] = a_d
+    return patient
+
+def insert_patient_smokinganamnesis_into_db(patient):
+    now = datetime.now()
+    a_d = newidentificator()
+    con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
+    #Применение курсоров
+    cur = con.cursor()
+    #Установка кодировки
+    cur.execute("SET NAMES 'utf8'")
+    cur.execute("START TRANSACTION")
+    #print(person['surname'])
+    cur.execute("INSERT INTO patient_smoking(patient_id, patientanamnesis_id, status_smoking, year_smoking, count_smoking, passive_smoking, createdatetime) VALUES('"+patient['patient_id']+"','"+a_d+"','"+patient['status_smoking']+"','"+patient['year_smoking']+"','"+patient['count_smoking']+"','"+patient['passive_smoking']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"')")
+    #print(person['surname'])
+    #Закрытие курсора
+    cur.close()
+    #Фиксация изменений
+    con.commit()
+    #Закрытие соединения
+    con.close()
+    patient['patientanamnesis_id'] = a_d
+    return patient
+
+def get_patient_druganamnesis_from_db(patient):
+    con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
+    #Применение курсоров
+    cur = con.cursor()
+    #Установка кодировки
+    cur.execute("SET NAMES 'utf8'")
+    cur.execute("START TRANSACTION")
+    #cur.execute("INSERT INTO users(surname, name, middlename, user_id,  login, password, lastlogindatetime, insystemtimeminutes) VALUES('"+person['surname']+"','"+person['name']+"','"+person['middlename']+"','"+a_d+"','"+person['login']+"','"+person['password']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"','"+a_st+"')")
+    cur.execute("SELECT patientanamnesis_id, drug_regular, drug_pressure, drug_cholesterol, drug_stroke, drug_diabetes, createdatetime FROM patient_drugs WHERE(patient_id='"+patient['patient_id']+"') ORDER BY createdatetime DESC LIMIT 1") 
+    results = cur.fetchall()
+    #Закрытие курсора
+    cur.close()
+    #Фиксация изменений
+    #con.commit()
+    #Закрытие соединения
+    con.close()
+    if len(results) > 0:
+        #patients = []
+        patient1 = {}
+        for row in results:
+            #patient1 = {}
+            s = str(row[0]).split() #Фамилия
+            patient1['patientanamnesis_id'] = ' '.join(s)
+            s = str(row[1]).split() #Имя
+            patient1['drug_regular'] = ' '.join(s)
+            s = str(row[2]).split() #Имя
+            patient1['drug_pressure'] = ' '.join(s)
+            s = str(row[3]).split() #Отчество
+            patient1['drug_cholesterol'] = ' '.join(s)
+            s = str(row[4]).split() #Отчество
+            patient1['drug_stroke'] = ' '.join(s)
+            s = str(row[5]).split() #Отчество
+            patient1['drug_diabetes'] = ' '.join(s)
+            s = str(row[6]).split() #Отчество
+            patient1['createdatetime'] = ' '.join(s)
+            #patients.append(patient1)
+        #return patients
+        return patient1
+
+def get_patient_injuryanamnesis_from_db(patient):
+    con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
+    #Применение курсоров
+    cur = con.cursor()
+    #Установка кодировки
+    cur.execute("SET NAMES 'utf8'")
+    cur.execute("START TRANSACTION")
+    #cur.execute("INSERT INTO users(surname, name, middlename, user_id,  login, password, lastlogindatetime, insystemtimeminutes) VALUES('"+person['surname']+"','"+person['name']+"','"+person['middlename']+"','"+a_d+"','"+person['login']+"','"+person['password']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"','"+a_st+"')")
+    cur.execute("SELECT patientanamnesis_id, year_injury, year_fracture, count_fracture, createdatetime FROM patient_injurys WHERE(patient_id='"+patient['patient_id']+"') ORDER BY createdatetime DESC LIMIT 1") 
+    results = cur.fetchall()
+    #Закрытие курсора
+    cur.close()
+    #Фиксация изменений
+    #con.commit()
+    #Закрытие соединения
+    con.close()
+    if len(results) > 0:
+        #patients = []
+        patient1 = {}
+        for row in results:
+            #patient1 = {}
+            s = str(row[0]).split() #Фамилия
+            patient1['patientanamnesis_id'] = ' '.join(s)
+            s = str(row[1]).split() #Имя
+            patient1['year_injury'] = ' '.join(s)
+            s = str(row[2]).split() #Имя
+            patient1['year_fracture'] = ' '.join(s)
+            s = str(row[3]).split() #Отчество
+            patient1['count_fracture'] = ' '.join(s)
+            s = str(row[4]).split() #Отчество
+            patient1['createdatetime'] = ' '.join(s)
+            #patients.append(patient1)
+        #return patients
+        return patient1
+
+def get_patient_smokinganamnesis_from_db(patient):
+    con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
+    #Применение курсоров
+    cur = con.cursor()
+    #Установка кодировки
+    cur.execute("SET NAMES 'utf8'")
+    cur.execute("START TRANSACTION")
+    #cur.execute("INSERT INTO users(surname, name, middlename, user_id,  login, password, lastlogindatetime, insystemtimeminutes) VALUES('"+person['surname']+"','"+person['name']+"','"+person['middlename']+"','"+a_d+"','"+person['login']+"','"+person['password']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"','"+a_st+"')")
+    cur.execute("SELECT patientanamnesis_id, status_smoking, year_smoking, count_smoking, passive_smoking, createdatetime FROM patient_smoking WHERE(patient_id='"+patient['patient_id']+"') ORDER BY createdatetime DESC LIMIT 1") 
+    results = cur.fetchall()
+    #Закрытие курсора
+    cur.close()
+    #Фиксация изменений
+    #con.commit()
+    #Закрытие соединения
+    con.close()
+    if len(results) > 0:
+        #patients = []
+        patient1 = {}
+        for row in results:
+            #patient1 = {}
+            s = str(row[0]).split() #Фамилия
+            patient1['patientanamnesis_id'] = ' '.join(s)
+            s = str(row[1]).split() #Имя
+            patient1['status_smoking'] = ' '.join(s)
+            s = str(row[2]).split() #Имя
+            patient1['year_smoking'] = ' '.join(s)
+            s = str(row[3]).split() #Отчество
+            patient1['count_smoking'] = ' '.join(s)
+            s = str(row[4]).split() #Отчество
+            patient1['passive_smoking'] = ' '.join(s)
+            s = str(row[5]).split() #Отчество
+            patient1['createdatetime'] = ' '.join(s)
+            #patients.append(patient1)
+        #return patients
+        return patient1
+
+
 def get_user_info_from_db(person):
     con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
     #Применение курсоров
@@ -449,6 +721,48 @@ def get_patient_info_from_db(patient):
             patient['sex'] = ' '.join(s) 
         return patient
 
+def get_patient_info_from_patient_id_from_db(patient):
+    con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
+    #Применение курсоров
+    cur = con.cursor()
+    #Установка кодировки
+    cur.execute("SET NAMES 'utf8'")
+    cur.execute("START TRANSACTION")
+    #cur.execute("INSERT INTO users(surname, name, middlename, user_id,  login, password, lastlogindatetime, insystemtimeminutes) VALUES('"+person['surname']+"','"+person['name']+"','"+person['middlename']+"','"+a_d+"','"+person['login']+"','"+person['password']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"','"+a_st+"')")
+    cur.execute("SELECT surname, name, middlename, birthday, doctor_id, policyoms, createdatetime, session_id, lastlogindatetime, insystemtimeminutes, sex  FROM patient_info WHERE (patient_id='"+patient['patient_id']+"')") 
+    results = cur.fetchall()
+    #Закрытие курсора
+    cur.close()
+    #Фиксация изменений
+    #con.commit()
+    #Закрытие соединения
+    con.close()
+    if len(results) > 0:
+        for row in results:
+            s = str(row[0]).split() #Фамилия
+            patient['surname'] = ' '.join(s)
+            s = str(row[1]).split() #Фамилия
+            patient['name'] = ' '.join(s)
+            s = str(row[2]).split() #Фамилия
+            patient['middlename'] = ' '.join(s)
+            s = str(row[3]).split() #Фамилия
+            patient['birthday'] = ' '.join(s)
+            s = str(row[4]).split() #Фамилия
+            patient['patientdoctor_id'] = ' '.join(s)
+            s = str(row[5]).split() #Имя
+            patient['policy_oms'] = ' '.join(s)
+            s = str(row[6]).split() #Отчество
+            patient['createdatetime'] = ' '.join(s)
+            s = str(row[7]).split() #uuid
+            patient['session_id'] = ' '.join(s)
+            s = str(row[8]).split() #lastlogindatetime
+            patient['lastlogindatetime'] = ' '.join(s)
+            s = str(row[9]).split() #insystemtimeminutes
+            patient['insystemtimeminutes'] = ' '.join(s)
+            s = str(row[10]).split() #insystemtimeminutes
+            patient['sex'] = ' '.join(s) 
+        return patient
+
 def get_patient_info_from_login_and_password_from_db(patient):
     con = psycopg2.connect(dbname=xdbname, user=xuser, password=xpassword, host=xhost)
     #Применение курсоров
@@ -457,7 +771,7 @@ def get_patient_info_from_login_and_password_from_db(patient):
     cur.execute("SET NAMES 'utf8'")
     cur.execute("START TRANSACTION")
     #cur.execute("INSERT INTO users(surname, name, middlename, user_id,  login, password, lastlogindatetime, insystemtimeminutes) VALUES('"+person['surname']+"','"+person['name']+"','"+person['middlename']+"','"+a_d+"','"+person['login']+"','"+person['password']+"','"+now.strftime("%d.%m.%Y %H:%M:%S")+"','"+a_st+"')")
-    cur.execute("SELECT patient_id, doctor_id, policyoms, createdatetime, session_id, lastlogindatetime, insystemtimeminutes, sex, surname, name, middlename  FROM patient_info WHERE (login='"+patient['login']+"' AND password='"+patient['password']+"')") 
+    cur.execute("SELECT patient_id, doctor_id, policyoms, createdatetime, session_id, lastlogindatetime, insystemtimeminutes, sex, surname, name, middlename, birthday  FROM patient_info WHERE (login='"+patient['login']+"' AND password='"+patient['password']+"')") 
     results = cur.fetchall()
     #Закрытие курсора
     cur.close()
@@ -489,6 +803,8 @@ def get_patient_info_from_login_and_password_from_db(patient):
             patient['name'] = ' '.join(s)
             s = str(row[10]).split() #middlename
             patient['middlename'] = ' '.join(s) 
+            s = str(row[11]).split() #middlename
+            patient['birthday'] = ' '.join(s) 
         return patient
 
 
@@ -653,6 +969,66 @@ def ispatienthave_login(person):
     con.close()        
     return b
 
+@name_space_patientgetpatient_predict.route("/")
+class PatientGetPatientPredict(Resource):
+    @app.doc(responses={ 200: 'OK', 400: 'Invalid Argument', 500: 'Mapping Key Error' })
+    @app.expect(model_patientgetpatient_predict)
+    def post(self):
+        try:
+            patient1 = app.payload #request.form['data']
+            if is_patient(patient1['patient_id']) == 1:
+                if float(is_patientvalid_session_id(patient1)) < 0:
+                    patient_data = [1,68,0,1,1,1,1,0,0,0,0,0,0,0,0,1,2,18,50,1,3,50,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,0,1]
+                    disease = predict(patient_data)
+                    return disease
+                else:
+                    patient1 = {
+                    "status" : "Время сессии истекло, войдите в систему заново по своему Логину и Паролю.",
+                    "session_id" : patient1["session_id"]
+                    }
+                    return patient1    
+            else:
+                patient1 = {
+                    "status" : "Пациент с указанным идентификатором не зарегистрован в Базе данных",
+                    "patient_id" : patient1["patient_id"]
+                }    
+                return patient1
+        except KeyError as e:
+            name_space_patientgetpatient_predict.abort(500, e.__doc__, status = "Could not retrieve information", statusCode = "500")
+        except Exception as e:
+            name_space_patientgetpatient_predict.abort(400, e.__doc__, status = "Could not retrieve information", statusCode = "400")
+
+
+@name_space_docgetpatient_predict.route("/")
+class DocGetPatientPredict(Resource):
+    @app.doc(responses={ 200: 'OK', 400: 'Invalid Argument', 500: 'Mapping Key Error' })
+    @app.expect(model_docgetpatient_predict)
+    def post(self):
+        try:
+            patient1 = app.payload #request.form['data']
+            if is_doctor(patient1['doctor_id']) == 1:
+                if float(is_docvalid_session_id(patient1)) < 0:
+                    patient_data = [1,68,0,1,1,1,1,0,0,0,0,0,0,0,0,1,2,18,50,1,3,50,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,0,1]
+                    disease = predict(patient_data)
+                    return disease
+                else:
+                    patient1 = {
+                    "status" : "Время сессии истекло, войдите в систему заново по своему Логину и Паролю.",
+                    "session_id" : patient1["session_id"]
+                    }
+                    return patient1    
+            else:
+                patient1 = {
+                    "status" : "Доктор с указанным идентификатором не зарегистрован в Базе данных",
+                    "doctor_id" : patient1["doctor_id"]
+                }    
+                return patient1
+        except KeyError as e:
+            name_space_docgetpatient_predict.abort(500, e.__doc__, status = "Could not retrieve information", statusCode = "500")
+        except Exception as e:
+            name_space_docgetpatient_predict.abort(400, e.__doc__, status = "Could not retrieve information", statusCode = "400")
+
+
 @name_space_patientgetpatient_anamnesis.route("/")
 class PatientGetPatientAnamnesis(Resource):
     @app.doc(responses={ 200: 'OK', 400: 'Invalid Argument', 500: 'Mapping Key Error' })
@@ -749,7 +1125,7 @@ class PatientGetPatientInfo(Resource):
             if is_patient(patient1['patient_id']) == 1:
                 if float(is_patientvalid_session_id(patient1)) < 0:
                     if is_patient_info(patient1) == 1:
-                        patient1 = get_patient_info_from_db(patient1)
+                        patient1 = get_patient_info_from_patient_id_from_db(patient1)
                         patient1 = get_doctor_fio_from_doctor_id(patient1)
                     else:
                         patient1 = {
@@ -786,7 +1162,7 @@ class DocGetPatientInfo(Resource):
             if is_doctor(patient1['doctor_id']) == 1:
                 if float(is_docvalid_session_id(patient1)) < 0:
                     if is_patient_info(patient1) == 1:
-                        patient1 = get_patient_info_from_db(patient1)
+                        patient1 = get_patient_info_from_patient_id_from_db(patient1)
                         patient1 = get_doctor_fio_from_doctor_id(patient1)
                     else:
                         patient1 = {
@@ -811,6 +1187,96 @@ class DocGetPatientInfo(Resource):
             name_space_docgetpatient_info.abort(500, e.__doc__, status = "Could not retrieve information", statusCode = "500")
         except Exception as e:
             name_space_docgetpatient_info.abort(400, e.__doc__, status = "Could not retrieve information", statusCode = "400")
+
+@name_space_patientaddpatient_druganamnesis.route("/") 
+class PatientAddPatientDrugAnamnesis(Resource):
+    @app.doc(responses={ 200: 'OK', 400: 'Invalid Argument', 500: 'Mapping Key Error' })
+    @app.expect(model_patientaddpatient_druganamnesis)
+    def post(self):
+        try:
+            patient1 = app.payload #request.form['data']
+            if is_patient(patient1['patient_id']) == 1:
+                if float(is_patientvalid_session_id(patient1)) < 0:
+                    patient1["doctor_id"] = ""
+                    patient1 = insert_patient_druganamnesis_into_db(patient1)
+                    patients = get_patient_druganamnesis_from_db(patient1)
+                    return patients
+                else:
+                    patient1 = {
+                    "status" : "Время сессии истекло, войдите в систему заново по своему Имени пользователя и Паролю.",
+                    "session_id" : patient1["session_id"]
+                    }
+                    return patient1    
+            else:
+                patient1 = {
+                    "status" : "Пациент с указанным идентификатором не зарегистрован в Базе данных",
+                    "patient_id" : patient1["patient_id"]
+                }    
+                return patient1
+        except KeyError as e:
+            name_space_patientaddpatient_druganamnesis.abort(500, e.__doc__, status = "Could not retrieve information", statusCode = "500")
+        except Exception as e:
+            name_space_patientaddpatient_druganamnesis.abort(400, e.__doc__, status = "Could not retrieve information", statusCode = "400")
+
+@name_space_patientaddpatient_injuryanamnesis.route("/") 
+class PatientAddPatientInjuryAnamnesis(Resource):
+    @app.doc(responses={ 200: 'OK', 400: 'Invalid Argument', 500: 'Mapping Key Error' })
+    @app.expect(model_patientaddpatient_injuryanamnesis)
+    def post(self):
+        try:
+            patient1 = app.payload #request.form['data']
+            if is_patient(patient1['patient_id']) == 1:
+                if float(is_patientvalid_session_id(patient1)) < 0:
+                    patient1["doctor_id"] = ""
+                    patient1 = insert_patient_injuryanamnesis_into_db(patient1)
+                    patients = get_patient_injuryanamnesis_from_db(patient1)
+                    return patients
+                else:
+                    patient1 = {
+                    "status" : "Время сессии истекло, войдите в систему заново по своему Имени пользователя и Паролю.",
+                    "session_id" : patient1["session_id"]
+                    }
+                    return patient1    
+            else:
+                patient1 = {
+                    "status" : "Пациент с указанным идентификатором не зарегистрован в Базе данных",
+                    "patient_id" : patient1["patient_id"]
+                }    
+                return patient1
+        except KeyError as e:
+            name_space_patientaddpatient_injuryanamnesis.abort(500, e.__doc__, status = "Could not retrieve information", statusCode = "500")
+        except Exception as e:
+            name_space_patientaddpatient_injuryanamnesis.abort(400, e.__doc__, status = "Could not retrieve information", statusCode = "400")
+
+@name_space_patientaddpatient_smokinganamnesis.route("/") 
+class PatientAddPatientSmokingAnamnesis(Resource):
+    @app.doc(responses={ 200: 'OK', 400: 'Invalid Argument', 500: 'Mapping Key Error' })
+    @app.expect(model_patientaddpatient_smokinganamnesis)
+    def post(self):
+        try:
+            patient1 = app.payload #request.form['data']
+            if is_patient(patient1['patient_id']) == 1:
+                if float(is_patientvalid_session_id(patient1)) < 0:
+                    patient1["doctor_id"] = ""
+                    patient1 = insert_patient_smokinganamnesis_into_db(patient1)
+                    patients = get_patient_smokinganamnesis_from_db(patient1)
+                    return patients
+                else:
+                    patient1 = {
+                    "status" : "Время сессии истекло, войдите в систему заново по своему Имени пользователя и Паролю.",
+                    "session_id" : patient1["session_id"]
+                    }
+                    return patient1    
+            else:
+                patient1 = {
+                    "status" : "Пациент с указанным идентификатором не зарегистрован в Базе данных",
+                    "patient_id" : patient1["patient_id"]
+                }    
+                return patient1
+        except KeyError as e:
+            name_space_patientaddpatient_smokinganamnesis.abort(500, e.__doc__, status = "Could not retrieve information", statusCode = "500")
+        except Exception as e:
+            name_space_patientaddpatient_smokinganamnesis.abort(400, e.__doc__, status = "Could not retrieve information", statusCode = "400")
 
 
 @name_space_patientaddpatient_anamnesis.route("/") 
