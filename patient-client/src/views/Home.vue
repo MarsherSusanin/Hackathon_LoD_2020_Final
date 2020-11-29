@@ -29,7 +29,7 @@ export default {
   },
   mounted () {
     if (!this.$store.state.session_id) {
-      this.$router.replace({ name: 'Login' })
+      //  this.$router.replace({ name: 'Login' })
     }
   }
 }
