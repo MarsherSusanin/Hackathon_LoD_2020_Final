@@ -9,6 +9,7 @@
 - Радаев Иван, Team lead: [Telegram](t.me/MarsherSus)
 - Гриценко Владимир, Back-end: [Telegram](t.me/Amiwriter)
 - Деев Максим, Front-end: [Telegram](t.me/MaksDeev)
+- Сизов Данил, jun back-end: [Telegram](t.me/sizov_da)
 - Базаров Кирилл, ML/DS: [Telegram](t.me/kirillbazarov)
 - Любавский Глеб, Design: [Telegram](t.me/Liubavskii_Gleb)
 
